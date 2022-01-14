@@ -50,6 +50,19 @@ end
 
 export two_stream_instability!
 
+
+"""
+    two_stream_instability!( f, eps, xi, v0 )
+
+Initialize the distribution function for the two stream instability damping test case
+
+```math
+f(xg,vg,t=0) = [((1 + eps*((cos(4π*x) + cos(6π*x)) / 1.2 
+.+ cos(2π*x))) * (1/sqrt(2π)) * ((2-2xi)/(3-2xi))
+    * (1 + 5 * v^2 / (1-xi)) * exp(-.5 * v^2)) for all x, v in xg, vg]
+```
+
+"""
 function two_stream_instability!(f; eps = 0.01, xi = 0.90, v0 = 2.4)
 
     nx = f.xgrid.len
