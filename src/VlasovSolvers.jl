@@ -1,6 +1,6 @@
 module VlasovSolvers
 
-  using FFTW, LinearAlgebra, Statistics
+  using FFTW, LinearAlgebra, Statistics, Plots
 
   include("devices.jl")
   include("grids.jl")
@@ -9,5 +9,7 @@ module VlasovSolvers
   include("steppers.jl")
   include("fourier.jl")
   include("problems.jl")
+  include("parameters.jl")
 
+  export VlasovSolvers
 end

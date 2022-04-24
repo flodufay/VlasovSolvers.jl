@@ -48,6 +48,34 @@ function landau!( f :: DistributionFunction, α, kx)
 
 end
 
+
+export landau_instable!
+
+
+function landau_instable!( f :: DistributionFunction, α, kx, v0)
+
+    nx = f.xgrid.len
+    nv = f.vgrid.len
+    x  = f.xgrid.points
+    v  = f.vgrid.points
+    f.values .= (1 .+ α*cos.(kx*x))/sqrt(2π) .* (transpose(exp.(-0.5*(v .- v0).^2) .+ exp.(-0.5*(v .+ v0).^2))) ./ 2
+
+end
+
+function M(a, u, T, v)
+    a/sqrt(2*pi*T) * transpose(exp.( - (abs.(v .- u ).^2)./(2*T)))
+end
+
+export three_stream_instability!
+
+function three_stream_instability!(f :: DistributionFunction, α, kx, v0, b, Tc)
+    nx = f.xgrid.len
+    nv = f.vgrid.len
+    x  = f.xgrid.points
+    v  = f.vgrid.points
+    f.values .= M(1-b, 0, Tc, v) .+ (1 .+ α .* cos.(kx*x)) .*(M(b/2, v0, 1, v) .+ M(b/2, -v0, 1, v))
+end
+
 export two_stream_instability!
 
 
@@ -112,56 +140,6 @@ end
     advection!(f, grid, v, dt; p = 5)
 
 Advect the distribution function `f` with velocity `v` along first `f` dimension
-with a time step `dt`. Interpolation method uses bspline periodic of order 5 by default. Real type version.
-"""
-function advection!(f    :: Array{AbstractFloat, 2},
-                    grid :: OneDGrid, 
-                    v, 
-                    dt;
-                    p = 5)
-    
-   nx = grid.len
-   nv = length(v)
-   dx = grid.step
-   modes = [2π * i / nx for i in 0:nx-1]
-    
-   # compute eigenvalues of degree p b-spline matrix
-   eig_bspl  = zeros(Float64, nx)
-   eig_bspl .= bspline(p, -div(p+1,2), 0.0)
-   for i in 1:div(p+1,2)-1
-      eig_bspl .+= bspline(p, i - (p+1)÷2, 0.0) * 2 .* cos.(i * modes)
-   end
-   eigalpha = zeros(Complex{Float64}, nx)
-    
-   ft = fft(f,1)
-    
-   for j in 1:nv
-      alpha = dt * v[j] / dx
-      # compute eigenvalues of cubic splines evaluated 
-      # at displaced points
-      ishift = floor(-alpha)
-      beta   = -ishift - alpha
-      fill!(eigalpha, 0.0im)
-      for i in -div(p-1,2):div(p+1,2)
-         eigalpha .+= (bspline(p, i-div(p+1,2), beta) 
-                        .* exp.((ishift+i) * 1im .* modes))
-      end
-          
-      # compute interpolating spline using fft and properties 
-      # of circulant matrices
-      
-      ft[:,j] .*= eigalpha ./ eig_bspl
-        
-   end
-        
-   f .= real(ifft(ft,1))
-    
-end            
-
-"""
-    advection!(f, grid, v, dt; p = 5)
-
-Advect the distribution function `f` with velocity `v` along first `f` dimension
 with a time step `dt`. Interpolation method uses bspline periodic of order 5 by default. Complex type version.
 """
 function advection!(f    :: Array{ComplexF64, 2},
@@ -206,7 +184,57 @@ function advection!(f    :: Array{ComplexF64, 2},
         
    ifft!(f,1)
     
-end            
+end    
+
+"""
+    advection!(f, grid, v, dt; p = 5)
+
+Advect the distribution function `f` with velocity `v` along first `f` dimension
+with a time step `dt`. Interpolation method uses bspline periodic of order 5 by default. Real type version.
+"""
+function advection!(f    :: Array{AbstractFloat, 2},
+                    grid :: OneDGrid, 
+                    v, 
+                    dt;
+                    p = 5)
+    
+                    nx = grid.len
+                    nv = length(v)
+                    dx = grid.step
+                    modes = [2π * i / nx for i in 0:nx-1]
+                     
+                    # compute eigenvalues of degree p b-spline matrix
+                    eig_bspl  = zeros(Float64, nx)
+                    eig_bspl .= bspline(p, -div(p+1,2), 0.0)
+                    for i in 1:div(p+1,2)-1
+                       eig_bspl .+= bspline(p, i - (p+1)÷2, 0.0) * 2 .* cos.(i * modes)
+                    end
+                    eigalpha = zeros(Complex{Float64}, nx)
+                     
+                    fft!(f,1)
+                     
+                    for j in 1:nv
+                       alpha = dt * v[j] / dx
+                       # compute eigenvalues of cubic splines evaluated 
+                       # at displaced points
+                       ishift = floor(-alpha)
+                       beta   = -ishift - alpha
+                       fill!(eigalpha,0.0im)
+                       for i in -div(p-1,2):div(p+1,2)
+                          eigalpha .+= (bspline(p, i-div(p+1,2), beta) 
+                                         .* exp.((ishift+i) * 1im .* modes))
+                       end
+                           
+                       # compute interpolating spline using fft and properties 
+                       # of circulant matrices
+                       
+                       f[:,j] .*= eigalpha ./ eig_bspl
+                         
+                    end
+                         
+                    real(ifft!(f,1))
+                     
+                 end    
 
 
 """
@@ -243,21 +271,32 @@ function compute_e( f::DistributionFunction )
 
 end
 
+"""
+    advection_x!(f, dt; p = 5)
 
-function advection_x!( f :: DistributionFunction, dt, p)
+to the advection for the varaiable x.
+"""
 
-    advection!(f.values, f.xgrid, f.vgrid.points, dt; p)
+function advection_x!( f :: DistributionFunction, dt, p = 5)
+
+    advection!(f.values, f.xgrid, f.vgrid.points, dt; p = 5)
 
 end
 
-function advection_v!( f :: DistributionFunction, dt, p)
+"""
+    advection_v!(f, dt; p = 5)
+
+to the advection for the varaiable v.
+"""
+
+function advection_v!( f :: DistributionFunction, dt, p = 5)
 
     dx = f.xgrid.step
     nx = f.xgrid.len
     e  = compute_e(f)
     nrj = 0.5*log(sum(e.*e)*dx)
     fᵗ = collect(transpose(f.values))
-    advection!(fᵗ, f.vgrid, e, dt; p)
+    advection!(fᵗ, f.vgrid, e, dt; p = 5)
     f.values .= transpose(fᵗ)
     nrj
 

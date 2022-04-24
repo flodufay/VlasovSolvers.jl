@@ -75,12 +75,18 @@ function solve!( problem::VlasovProblem{Fourier}, stepper::StrangSplitting, dt, 
     modes .= 2π / Lx .* vcat(0:nx÷2-1,-nx÷2:-1)
     modes[1] = 1.0
     ρ̂ = fft(ρ)./modes
-    e .= vec(real(ifft(-1im .* ρ̂)))
-    
+    e .= vec(real(ifft(-1im .* ρ̂ )))
+
+    nrj0 = Vector{Float64}(undef, nsteps)
+
     nrj = Vector{Float64}(undef, nsteps)
-    
+        
     for it in 1:nsteps
 
+        ρ   = dv .* vec(sum(real(fᵀ), dims=1))
+        ρ  .-= mean(ρ)
+        ρ̂t= fft(ρ)/ modes
+        nrj0[it] =  abs(- 1im * ρ̂t[2])
         advection_v!(fᵀ, problem.method, e, 0.5dt)
         transpose!(f,fᵀ)
         advection_x!( f, problem.method, e, v, dt)
@@ -90,7 +96,7 @@ function solve!( problem::VlasovProblem{Fourier}, stepper::StrangSplitting, dt, 
 
     end
 
-    nrj
+    return nrj
 
 end
 
