@@ -7,9 +7,10 @@ function construct_optimum(l, T1)
     res = zeros(length(T1))
     i = 0
     while i <= length(l)- 4
-        res += ((l[i + 3] .* exp.(l[i + 1] .* T1) .* abs.(cos.(l[i + 2] .* T1 .+ l[i + 4]))))
+        res += ((l[i + 3] .* exp.(l[i + 1] .* T1) .*abs.((cos.(l[i + 2] .* T1 .+ l[i + 4])))))
         i+= 4
     end
+ #   res = log.(abs(l[3])) .+ l[1].*T1 .+ log.(abs.(cos.(l[2] .* T1 .+ l[4])))
     res
 end
 
@@ -35,22 +36,23 @@ end
 
 
 
-function optimum(sol, init :: Array{Array{Float64,1},1}, T, T2, ind_start)
+function optimum(sol, init :: Array{Array{Float64,1},1}, T, ind_start)
     function f(x) 
-        return ((construct_optimum(x, T2)) .- (sol[ind_start : length(T)]))
+        return (construct_optimum(x, T[ind_start : length(T)]) .- sol[ind_start : length(T)])
     end
 
-    function g!(G,x) 
+    function gradient!(G,x) 
         tab = f(x)
         i = 0
         d = 1
+        T2 = T[ind_start : length(T)]
         while i <= length(x)- 4
             G[i + 1] = 0
             G[i + 2] = 0
             G[i + 3] = 0
             G[i + 4] = 0
             for t in 1 : length(T2)
-                if (x[i + 2] * T[2] + x[i + 4] + pi / 2) % (2 * pi) > pi
+                if (cos(x[i + 2] * T[2] + x[i + 4])) >= 0
                     d = 1
                 else
                     d = -1
@@ -68,10 +70,10 @@ function optimum(sol, init :: Array{Array{Float64,1},1}, T, T2, ind_start)
         return norm(f(x))
     end
 
-    lower = -10. * ones(4 *length(init))
-    upper = 10. * ones(4 *length(init))
-
-    res = optimize(dist, g!, concat(init), ConjugateGradient())
+#    res = optimize(dist, concat(init), ConjugateGradient())
+    res = optimize(dist, concat(init))
+ #res = optimize(dist, gradient!,concat(init),BFGS())
+    print("actualisé \n")
     
     l, min = Optim.minimizer(res), Optim.minimum(res)
     return unconcat(l), min
@@ -98,20 +100,22 @@ end
 export find_parameters
 
 
-function find_parameters(l :: Array{Array{Float64,1},1}, sol, D, T, window, ind_start)
-    T2 = T[Int(ind_start) : length(T)]
+function find_parameters(l :: Array{Array{Float64,1},1}, sol, D, T, window, ind_start, p = false)
     init = initialization(l, D, sol, ind_start)
     #init = l
-    parameters, dist = optimum(sol, init, T, T2, ind_start)
-    
-    Y = construct_optimum(concat(parameters), T)
-    T_tronc = T[window[1] : window[2]]
-    sol_tronc = sol[window[1] : window[2]]
-    Y_tronc = construct_optimum(concat(parameters), T_tronc)
-    test_tampon = construct_optimum(l, T_tronc)
+    parameters, dist = optimum(sol, init, T, ind_start)
 
-    display(plot(T_tronc, [log.(abs.(sol_tronc)), log.(abs.(Y_tronc)), log.(abs.(test_tampon))] , label = ["E_rond simulé" "approx paramaters" "test book"], legend = :topleft ))
+    if p 
 
+        Y = construct_optimum(concat(parameters), T)
+        T_tronc = T[window[1] : window[2]]
+        sol_tronc = sol[window[1] : window[2]]
+        Y_tronc = construct_optimum(concat(parameters), T_tronc)
+        test_tampon = construct_optimum(concat(l), T_tronc)
+        test_tampon = test_tampon * sol_tronc[1]/test_tampon[1]
+
+        display(plot(T_tronc, [log.(abs.(sol_tronc)), log.(abs.(Y_tronc))] , label = ["simulation" "approximation of the simulation" ], legend = :topleft ))
+    end
     print("\n our initialization : ")
     print(init)
     print("\n book initialization (adapted) : ")
@@ -125,5 +129,6 @@ function find_parameters(l :: Array{Array{Float64,1},1}, sol, D, T, window, ind_
             end
             return res
         end
+    
 end
 

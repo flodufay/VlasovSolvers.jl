@@ -2,22 +2,21 @@
 
 
 dev = CPU()                  # device
-nx, nv = 12, 12              # grid resolution
+nx, nv = 32, 32              # grid resolution
 stepper = StrangSplitting()  # timestepper
 dt = 0.1                    # timestep
-nsteps = 600                  # total number of time-steps
+nsteps = 450                  # total number of time-steps
 
 vmin, vmax = -10, 10           # V Domain length (m)
-kx = 0.2               # Wave number of perturbation
+kx = 0.3               # Wave number of perturbation
 xmin, xmax = 0, 2π/kx           # X Domain length (m)
 v0 = 2.3
-α = 0.00001         
-t_start = dt       # Optimization Domain
+t_start = 20       # Optimization Domain
 ind_start = Int(t_start/dt)
-window = [ind_start, Int(60/dt)]   # Display domain 
+window = [ind_start, Int(nsteps)]   # Display domain 
 #a_book, b_book, c_book, phi_book, linear_book = -    0.00104, 1.1648, 0.002*0.42466, -0.33577, 0.02115
 a_book, b_book, c_book, phi_book, linear_book = - 0.00242, 1.339, 0.002*0.42466, -0.33577, 0.2258
-l = [[a_book, b_book, c_book, phi_book], [linear_book, 0, c_book, 0]]
+l = [[linear_book, 0, c_book, 0]]
 
 T = LinRange(0, nsteps * dt, nsteps)                
 
